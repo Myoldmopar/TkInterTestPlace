@@ -2,34 +2,35 @@ jobs:
   include:
   - os: linux
     dist: bionic
-    name: Linux (Ubuntu 18.04) Tests
+    name: Ubuntu 18.04 Tests
     language: python
     python: 3.6
     before_script: pip3 install -r requirements.txt
     script: nosetests
-    before_deploy: pyinstaller main.py && mv dist/main dist/TkInterTest-Ubuntu1804
+    before_deploy: scripts/build_ubuntu1804.sh
   - os: linux
     dist: focal
-    name: Linux (Ubuntu 20.04) Tests
+    name: Ubuntu 20.04 Tests
     language: python
     python: 3.6
     before_script: pip3 install -r requirements.txt
     script: nosetests
-    before_deploy: pyinstaller main.py && mv dist/main dist/TkInterTest-Ubuntu2004
+    before_deploy: scripts/build_ubuntu2004.sh
   - os: osx
     name: Mac 10.15 Tests
     osx_image: xcode11.4
     before_script: pip3 install --user -r requirements.txt
     script: /Users/travis/Library/Python/3.7/bin/nosetests
-    before_deploy: /Users/travis/Library/Python/3.7/bin/pyinstaller main.py && mv dist/main.exe dist/TkInterTest-Windows.exe
+    before_deploy: scripts/build_mac.sh
   - os: windows
     language: cpp
     name: Windows Tests
     before_script:
+    - choco install 7zip
     - choco install python --version 3.6.8
     - pip3 install -r requirements.txt
     script: nosetests
-    before_deploy: pyinstaller main.py && mv dist/main dist/TkInterTest-Mac1015
+    before_deploy: scripts/build_windows.sh
     env: PATH=/c/Python36:/c/Python36/Scripts:$PATH
   - os: linux
     dist: bionic
