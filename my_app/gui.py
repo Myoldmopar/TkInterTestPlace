@@ -3,8 +3,8 @@ from tkinter import (
     Button, Frame, Label, Listbox, Menu, Scrollbar,  # Widgets
     StringVar,  # Special Types
     messagebox,  # Dialog boxes
-    E, W, N, S, END,
-    Tk,
+    E, W, N, S, END, HORIZONTAL,
+    Tk, ttk
 )
 
 from pubsub import pub
@@ -32,6 +32,7 @@ class MyApp(Frame):
         self.long_thread = None
         self.label_string = StringVar()
         self.background_operator = None
+        self.progress = None
 
         # initialize the GUI
         self.init_window()
@@ -70,7 +71,9 @@ class MyApp(Frame):
         scrollbar.config(command=my_list.yview)
 
         # status bar at the bottom
-        label.grid(column=0, row=2, columnspan=3, sticky=E + W)
+        self.progress = ttk.Progressbar(self.root)
+        self.progress.grid(column=0, row=2, sticky=E+W)
+        label.grid(column=1, row=2, columnspan=2, sticky=E+W)
 
         # wire up the background thread
         pub.subscribe(self.status_callback, PubSubMessageTypes.STATUS)
