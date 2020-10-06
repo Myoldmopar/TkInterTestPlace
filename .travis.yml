@@ -1,0 +1,49 @@
+jobs:
+  include:
+  - os: linux
+    dist: bionic
+    name: Linux (Ubuntu 18.04) Tests
+    language: python
+    python: 3.6
+    before_script: pip3 install -r requirements.txt
+    script: nosetests
+    after_script: pyinstaller main.py
+
+  - os: linux
+    dist: focal
+    name: Linux (Ubuntu 20.04) Tests
+    language: python
+    python: 3.6
+    before_script: pip3 install -r requirements.txt
+    script: nosetests
+    after_script: pyinstaller main.py
+  - os: osx
+    name: Mac 10.15 E+ Tests
+    osx_image: xcode11.4
+    before_script: pip3 install -r requirements.txt
+    script: nosetests
+    after_script: pyinstaller main.py
+  - os: windows
+    language: cpp
+    name: Windows 64-bit E+ Tests
+    before_script:
+      - choco install python --version 3.6.8
+      - pip3 install -r requirements.txt
+    script: nosetests
+    after_script: pyinstaller main.py
+    env: PATH=/c/Python36:/c/Python36/Scripts:$PATH
+  - os: linux
+    dist: bionic
+    name: Flake8
+    language: python
+    python: 3.6
+    before_script: pip3 install -r requirements.txt
+    script: flake8 my_app
+
+#deploy:
+#  provider: releases
+#  api_key: "GITHUB OAUTH TOKEN"
+#  file: "FILE TO UPLOAD"
+#  skip_cleanup: true
+#  on:
+#    tags: true

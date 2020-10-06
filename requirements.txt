@@ -1,2 +1,8 @@
-pyinstaller
+# for development/running
 pypubsub
+
+# for testing
+nose
+
+# for packaging
+pyinstaller
