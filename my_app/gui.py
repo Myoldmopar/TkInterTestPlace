@@ -104,5 +104,5 @@ class Window(Frame):
         self.client_done()
 
     def cancelled_callback(self):
-        self.label_string.set(f"Properly cancelled!")
+        self.label_string.set("Properly cancelled!")
         self.client_done()

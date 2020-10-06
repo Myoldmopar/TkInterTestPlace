@@ -20,7 +20,7 @@ jobs:
     name: Mac 10.15 E+ Tests
     osx_image: xcode11.4
     before_script: pip3 install --user -r requirements.txt
-    script: nosetests
+    script: /Users/travis/Library/Python/3.7/bin/nosetests
     after_script: pyinstaller main.py
   - os: windows
     language: cpp
