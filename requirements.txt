@@ -2,6 +2,7 @@
 pypubsub
 
 # for testing
+flake8
 nose
 
 # for packaging
