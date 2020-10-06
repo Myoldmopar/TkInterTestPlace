@@ -7,7 +7,7 @@ jobs:
     python: 3.6
     before_script: pip3 install -r requirements.txt
     script: nosetests
-    after_script: pyinstaller main.py
+    after_script: pyinstaller main.py && mv dist/main dist/TkInterTest-Ubuntu1804
   - os: linux
     dist: focal
     name: Linux (Ubuntu 20.04) Tests
@@ -15,13 +15,13 @@ jobs:
     python: 3.6
     before_script: pip3 install -r requirements.txt
     script: nosetests
-    after_script: pyinstaller main.py
+    after_script: pyinstaller main.py && mv dist/main dist/TkInterTest-Ubuntu2004
   - os: osx
     name: Mac 10.15 E+ Tests
     osx_image: xcode11.4
     before_script: pip3 install --user -r requirements.txt
     script: /Users/travis/Library/Python/3.7/bin/nosetests
-    after_script: pyinstaller main.py
+    after_script: pyinstaller main.py && mv dist/main.exe dist/TkInterTest-Windows.exe
   - os: windows
     language: cpp
     name: Windows 64-bit E+ Tests
@@ -29,7 +29,7 @@ jobs:
     - choco install python --version 3.6.8
     - pip3 install -r requirements.txt
     script: nosetests
-    after_script: pyinstaller main.py
+    after_script: pyinstaller main.py && mv dist/main dist/TkInterTest-Mac1015
     env: PATH=/c/Python36:/c/Python36/Scripts:$PATH
   - os: linux
     dist: bionic
@@ -38,11 +38,15 @@ jobs:
     python: 3.6
     before_script: pip3 install -r requirements.txt
     script: flake8 my_app
+
 deploy:
   provider: releases
   api_key:
     secure: CLIdXPJ0YjPIZQ6Iv1/BnjfzQu16aOBjrVdJ+K0aiHBiCeHO2yIvd3UzgjQeIFa7vNY5iyElJskTaTmOOOK5NwpaLtHTl59BGOQUk4ltqS5W+WdAdHZhcllk7g2NMB1Lpke9oeLWInnp5qWvJ8bner9INsMFbblnbrqkbWLK2qRbe/SWMASrI53cSwstn/LH3ZA0yA2a9lm6C4dT2+wdVpgvqJBi2PiBdIxgyzwkaOYNEbMoOH8Bk0xPpejwU0Yfs97P0r0oVWRTbziUOWyeGj2IN/W/sR55CdYfu11OYpvvBm+Pydwv5YKr2ew4dwt0Jjg7Nd4RNvHEXn76yUnG3Dv1V3MNRJa462UKiMnj8gwQI6MRqzZtft/ayJ7I22rGdEL19Wgl86ut1ufBmbEJR8aq0Kl5WLld+kl0/NNHeWizq9664WpPWqWsU8aqw21w1Zvje7d2ludWBWwbAadF+ICU8Qop30PxqFdDY4W/VTwlLAng4Me8CJLlFOfwNBDXg2JEL2hQJ/iVcZUYzre0STZZvC2LLKgWZ4l81GeLR+ofk25FRa0NX9zf3Mf7qAP6MHOCtp/LA3x5M7/1kqNW0gDsg8wTFy6akiYVemdnYTlhU8FnDSvklye7Gc5Y7Vdiw0qGmLpL8tXkIGfFnbWCT0e8DHpnWco7N0jCDhDbVDI=
-  file: dist/whatever
+  file_glob: true
+  file: dist/*
   on:
+    tags: true
     repo: Myoldmopar/TkInterTestPlace
-  skip_cleanup: 'true'
+  skip_cleanup: true
+  overwrite: true
