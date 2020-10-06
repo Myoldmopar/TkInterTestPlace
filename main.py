@@ -7,12 +7,8 @@
 from sys import argv
 
 if len(argv) == 1:  # GUI
-    from tkinter import Tk
-    from my_app.gui import Window
-    root = Tk()
-    root.geometry("400x300")
-    root.option_add('*tearOff', False)  # keeps file menus from looking weird
-    app = Window(root)
-    root.mainloop()
+    from my_app.gui import MyApp
+    app = MyApp()
+    app.run()
 else:  # Non-GUI operation, execute some command
     ...
