@@ -1,5 +1,7 @@
 # Basic Template for TkInter Application
 
+[![Build Status](https://travis-ci.com/Myoldmopar/TkInterTestPlace.svg?branch=master)](https://travis-ci.com/Myoldmopar/TkInterTestPlace)
+
 This template includes the basic framework for a TkInter app in Python.  Features include:
  
 - Well-structured repo
