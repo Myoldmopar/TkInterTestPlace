@@ -2,4 +2,4 @@
 
 pyinstaller main.py
 mkdir deploy
-tar -zcvf deploy/TkInterTest-Ubuntu2004.tar.gz -C dist
+tar -zcvf deploy/TkInterTest-Ubuntu2004.tar.gz -C dist main
