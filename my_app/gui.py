@@ -3,7 +3,7 @@ from tkinter import (
     Button, Frame, Label, Listbox, Menu, Scrollbar,  # Widgets
     StringVar,  # Special Types
     messagebox,  # Dialog boxes
-    E, W, N, S, END, HORIZONTAL,
+    E, W, N, S, END,
     Tk, ttk
 )
 
