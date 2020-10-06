@@ -1,3 +1,4 @@
+from platform import system
 from subprocess import check_call
 
 from pubsub import pub
@@ -15,6 +16,12 @@ class BackgroundOperation:
             if self.cancel_me:
                 pub.sendMessage(PubSubMessageTypes.CANCELLED)
                 return
-            check_call(['sleep', '1'])
+            if system() == 'Windows':
+                a_sum = 0
+                for k in range(10000):
+                    for j in range(2000):
+                        a_sum += 1
+            else:
+                check_call(['sleep', '1'])
             pub.sendMessage(PubSubMessageTypes.STATUS, status=f"{i}/{number_iterations} of the way there")
         pub.sendMessage(PubSubMessageTypes.FINISHED, results='PRETEND I AM RESULTS')

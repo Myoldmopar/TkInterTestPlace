@@ -1,10 +1,11 @@
 from threading import Thread
 from tkinter import (
-    Button, Frame, Label, Listbox, Menu, Scrollbar,  # Widgets
+    Button, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
     StringVar,  # Special Types
     messagebox,  # Dialog boxes
     E, W, N, S, END,
-    Tk, ttk
+    Tk, ttk, GROOVE,
+    BOTH, VERTICAL
 )
 
 from pubsub import pub
@@ -48,13 +49,26 @@ class MyApp(Frame):
         file_menu.add_command(label="Exit", command=self.client_exit)
         menu.add_cascade(label="File", menu=file_menu)
 
-        # create the widgets
-        self.run_button = Button(self.root, text="Run", command=self.client_run)
-        self.stop_button = Button(self.root, text="Stop", command=self.client_stop)
+        m1 = PanedWindow(self.root, sashrelief=GROOVE)
+        m1.pack(fill=BOTH, expand=1)
+
+        left = Label(m1, text="HELLO")
+        m1.add(left)
+
+        right = Label(m1, text="WORLD")
+        m1.add(right)
+
+        # put a paned window for the rest of the widgets
+        panes = PanedWindow(self.root)
+        panes.pack(fill=BOTH, expand=1)
+
+        # create the left pane containing the controls
+        pane_controls = Frame(panes)
+        panes.add(pane_controls)
+        self.run_button = Button(pane_controls, text="Run", command=self.client_run)
+        self.stop_button = Button(pane_controls, text="Stop", command=self.client_stop)
         self.stop_button.configure(state='disabled')
-        label = Label(self.root, textvariable=self.label_string)
-        self.label_string.set("Initialized")
-        quit_button = Button(self.root, text="Quit", command=self.client_exit)
+        quit_button = Button(pane_controls, text="Quit", command=self.client_exit)
 
         # placing the button on my window
         self.run_button.grid(column=0, row=0, sticky=E+W)
@@ -62,18 +76,24 @@ class MyApp(Frame):
         quit_button.grid(column=2, row=0, sticky=E+W)
 
         # set up a scrolled listbox
-        scrollbar = Scrollbar(self.root)
+        pane_tests = Frame(panes)
+        panes.add(pane_tests)
+        scrollbar = Scrollbar(pane_tests)
         scrollbar.grid(column=3, row=1, sticky=N+S)
-        my_list = Listbox(self.root, yscrollcommand=scrollbar.set)
+        my_list = Listbox(pane_tests, yscrollcommand=scrollbar.set)
         for line in range(100):
             my_list.insert(END, "This is line number " + str(line))
         my_list.grid(column=0, columnspan=3, row=1, sticky=N+S+E+W)
         scrollbar.config(command=my_list.yview)
 
         # status bar at the bottom
-        self.progress = ttk.Progressbar(self.root)
-        self.progress.grid(column=0, row=2, sticky=E+W)
-        label.grid(column=1, row=2, columnspan=2, sticky=E+W)
+        frame_status = Frame(self.root)
+        self.progress = ttk.Progressbar(frame_status)
+        self.progress.grid(column=0, row=0, sticky=E+W)
+        label = Label(frame_status, textvariable=self.label_string)
+        self.label_string.set("Initialized")
+        label.grid(column=1, row=0, sticky=E+W)
+        frame_status.pack(fill=BOTH, expand=1)
 
         # wire up the background thread
         pub.subscribe(self.status_callback, PubSubMessageTypes.STATUS)
