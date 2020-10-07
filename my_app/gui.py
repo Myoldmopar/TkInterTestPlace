@@ -1,11 +1,13 @@
 from threading import Thread
 from tkinter import (
+    Tk, ttk,  # Core pieces
     Button, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
     StringVar,  # Special Types
     messagebox,  # Dialog boxes
-    E, W, N, S, END,
-    Tk, ttk, GROOVE,
-    BOTH, VERTICAL
+    E, W,  # Cardinal directions N, S,
+    X, Y, BOTH,  # Orthogonal directions (for fill)
+    END, TOP, LEFT, CENTER,  # relative directions (RIGHT)
+    GROOVE,  # relief type (for panedwindow sash)
 )
 
 from pubsub import pub
@@ -20,6 +22,7 @@ class MyApp(Frame):
         self.root = Tk()
         Frame.__init__(self, self.root)
 
+        self.root.geometry('600x500')
         self.root.resizable(width=1, height=1)
         self.root.option_add('*tearOff', False)  # keeps file menus from looking weird
         self.root.grid_rowconfigure(1, weight=1)
@@ -49,17 +52,8 @@ class MyApp(Frame):
         file_menu.add_command(label="Exit", command=self.client_exit)
         menu.add_cascade(label="File", menu=file_menu)
 
-        m1 = PanedWindow(self.root, sashrelief=GROOVE)
-        m1.pack(fill=BOTH, expand=1)
-
-        left = Label(m1, text="HELLO")
-        m1.add(left)
-
-        right = Label(m1, text="WORLD")
-        m1.add(right)
-
         # put a paned window for the rest of the widgets
-        panes = PanedWindow(self.root)
+        panes = PanedWindow(self.root, sashrelief=GROOVE)
         panes.pack(fill=BOTH, expand=1)
 
         # create the left pane containing the controls
@@ -71,19 +65,19 @@ class MyApp(Frame):
         quit_button = Button(pane_controls, text="Quit", command=self.client_exit)
 
         # placing the button on my window
-        self.run_button.grid(column=0, row=0, sticky=E+W)
-        self.stop_button.grid(column=1, row=0, sticky=E+W)
-        quit_button.grid(column=2, row=0, sticky=E+W)
+        self.run_button.pack(side=TOP, anchor=CENTER)
+        self.stop_button.pack(side=TOP, anchor=CENTER)
+        quit_button.pack(side=TOP, anchor=CENTER)
 
         # set up a scrolled listbox
         pane_tests = Frame(panes)
-        panes.add(pane_tests)
         scrollbar = Scrollbar(pane_tests)
-        scrollbar.grid(column=3, row=1, sticky=N+S)
+        panes.add(pane_tests)
         my_list = Listbox(pane_tests, yscrollcommand=scrollbar.set)
         for line in range(100):
             my_list.insert(END, "This is line number " + str(line))
-        my_list.grid(column=0, columnspan=3, row=1, sticky=N+S+E+W)
+        my_list.pack(fill=BOTH, side=LEFT, expand=True)
+        scrollbar.pack(fill=Y, side=LEFT)
         scrollbar.config(command=my_list.yview)
 
         # status bar at the bottom
@@ -93,7 +87,7 @@ class MyApp(Frame):
         label = Label(frame_status, textvariable=self.label_string)
         self.label_string.set("Initialized")
         label.grid(column=1, row=0, sticky=E+W)
-        frame_status.pack(fill=BOTH, expand=1)
+        frame_status.pack(fill=X)
 
         # wire up the background thread
         pub.subscribe(self.status_callback, PubSubMessageTypes.STATUS)
