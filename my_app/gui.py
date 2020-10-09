@@ -36,7 +36,12 @@ class IDFTestCaseRowFrame(ttk.Frame):
         super().__init__(container)
         self.idf_path = idf_file_path_from_repo_root
         self.checked = BooleanVar()
-        self.checkbox = Checkbutton(container, text=idf_file_path_from_repo_root, variable=self.checked, command=cb)
+        self.checkbox = Checkbutton(
+            container,
+            text=idf_file_path_from_repo_root,
+            variable=self.checked,
+            command=lambda i=idf_file_path_from_repo_root, c=self.checked: cb(i, c)
+        )
         self.checkbox.pack(fill=X)
 
     def set_enabled_status(self, enabled: bool):
@@ -65,6 +70,7 @@ class MyApp(Frame):
         self.background_operator = None
         self.progress = None
         self.idf_test_cases = None
+        self.log_message_listbox = None
 
         # initialize the GUI
         self.init_window()
@@ -107,16 +113,22 @@ class MyApp(Frame):
             self.idf_test_cases[-1].pack()
         panes.add(pane_idfs)
 
-        # set up a scrolled listbox
-        pane_tests = Frame(panes)
-        scrollbar = Scrollbar(pane_tests)
-        my_list = Listbox(pane_tests, yscrollcommand=scrollbar.set)
-        for line in range(100):
-            my_list.insert(END, "This is line number " + str(line))
-        my_list.pack(fill=BOTH, side=LEFT, expand=True)
+        # the far right will be a notebook view with two panes: log messages and test results
+        results_notebook = ttk.Notebook(panes)
+
+        # set up a scrolled listbox for the log messages
+        frame_log_messages = Frame(results_notebook)
+        scrollbar = Scrollbar(frame_log_messages)
+        self.log_message_listbox = Listbox(frame_log_messages, yscrollcommand=scrollbar.set)
+        self.log_message_listbox.insert(END, "Program started...here are some fake messages")
+        for line in range(25):
+            self.log_message_listbox.insert(END, "This is line number " + str(line))
+        self.log_message_listbox.pack(fill=BOTH, side=LEFT, expand=True)
         scrollbar.pack(fill=Y, side=LEFT)
-        scrollbar.config(command=my_list.yview)
-        panes.add(pane_tests)
+        scrollbar.config(command=self.log_message_listbox.yview)
+        results_notebook.add(frame_log_messages, text="Log Messages")
+
+        panes.add(results_notebook)
 
         # status bar at the bottom
         frame_status = Frame(self.root)
@@ -135,8 +147,8 @@ class MyApp(Frame):
     def run(self):
         self.root.mainloop()
 
-    def idf_selected_callback(self, check):
-        self.label_string.set("CHECKED")
+    def idf_selected_callback(self, test_case, checked):
+        self.label_string.set(f"CHECKED: {test_case} ({checked.get()})")
 
     def set_gui_status_for_run(self, is_running: bool):
         if is_running:
@@ -162,6 +174,7 @@ class MyApp(Frame):
         self.long_thread.start()
 
     def client_stop(self):
+        self.log_message_listbox.insert(END, "Attempting to cancel")
         self.label_string.set("Attempting to cancel...")
         self.background_operator.please_stop()
 
@@ -175,14 +188,17 @@ class MyApp(Frame):
         self.set_gui_status_for_run(False)
         self.long_thread = None
 
-    def status_callback(self, status, percent_complete):
+    def status_callback(self, status, object_completed, percent_complete):
+        self.log_message_listbox.insert(END, object_completed)
         self.progress['value'] = percent_complete
         self.label_string.set(f"Hey, status update: {str(status)}")
 
     def finished_callback(self, results):
+        self.log_message_listbox.insert(END, "All done, finished")
         self.label_string.set(f"Hey, all done! Results: {results['result_string']}")
         self.client_done()
 
     def cancelled_callback(self):
+        self.log_message_listbox.insert(END, "Cancelled!")
         self.label_string.set("Properly cancelled!")
         self.client_done()

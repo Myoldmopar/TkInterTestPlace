@@ -31,6 +31,7 @@ class BackgroundOperation:
             # then broadcast the message to any listeners
             pub.sendMessage(
                 PubSubMessageTypes.STATUS,
+                object_completed=f"Iteration {i} Completed Successfully",
                 percent_complete=100.0 * float(i) / float(number_iterations),
                 status=f"{i}/{number_iterations} of the way there")
         # once totally complete just broadcast the completion
