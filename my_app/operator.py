@@ -1,5 +1,4 @@
-from platform import system
-from subprocess import check_call
+from time import sleep
 
 from pubsub import pub
 
@@ -19,20 +18,22 @@ class BackgroundOperation:
 
     def run(self, number_iterations: int):
         for i in range(1, number_iterations + 1):
+
             # background thread code should check for cancellation as often as possible
             if self._cancel_me:
                 pub.sendMessage(PubSubMessageTypes.CANCELLED)
                 return
+
             # run one single iteration
-            command = 'sleep'
-            if system() == 'Windows':
-                command = 'timeout'
-            check_call([command, '1'])
+            # check_call([command, '1'])
+            sleep(1)
+
             # then broadcast the message to any listeners
             pub.sendMessage(
                 PubSubMessageTypes.STATUS,
                 object_completed=f"Iteration {i} Completed Successfully",
                 percent_complete=100.0 * float(i) / float(number_iterations),
                 status=f"{i}/{number_iterations} of the way there")
+
         # once totally complete just broadcast the completion
         pub.sendMessage(PubSubMessageTypes.FINISHED, results={'result_string': 'PRETEND I AM RESULTS'})
