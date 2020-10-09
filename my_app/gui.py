@@ -1,8 +1,8 @@
 from threading import Thread
 from tkinter import (
     Tk, ttk,  # Core pieces
-    Button, Canvas, Checkbutton, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
-    BooleanVar, StringVar,  # Special Types
+    Button, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
+    StringVar,  # Special Types
     messagebox,  # Dialog boxes
     E, W,  # Cardinal directions N, S,
     X, Y, BOTH,  # Orthogonal directions (for fill)
@@ -12,40 +12,9 @@ from tkinter import (
 
 from pubsub import pub
 
+from my_app.gui_widgets import ScrollableFrame, IDFTestCaseRowFrame, ResultsTreeRoots
 from my_app.structs import PubSubMessageTypes
 from my_app.operator import BackgroundOperation
-
-
-class ScrollableFrame(ttk.Frame):
-
-    def __init__(self, container):
-        super().__init__(container)
-        canvas = Canvas(self)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas)
-        self.scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-
-class IDFTestCaseRowFrame(ttk.Frame):
-
-    def __init__(self, container, idf_file_path_from_repo_root, cb):
-        super().__init__(container)
-        self.idf_path = idf_file_path_from_repo_root
-        self.checked = BooleanVar()
-        self.checkbox = Checkbutton(
-            container,
-            text=idf_file_path_from_repo_root,
-            variable=self.checked,
-            command=lambda i=idf_file_path_from_repo_root, c=self.checked: cb(i, c)
-        )
-        self.checkbox.pack(fill=X)
-
-    def set_enabled_status(self, enabled: bool):
-        self.checkbox.configure(state='normal' if enabled else 'disable')
 
 
 class MyApp(Frame):
@@ -54,23 +23,26 @@ class MyApp(Frame):
         self.root = Tk()
         Frame.__init__(self, self.root)
 
-        self.root.geometry('800x500')
+        # high level GUI configuration
+        self.root.geometry('1200x500')
         self.root.resizable(width=1, height=1)
         self.root.option_add('*tearOff', False)  # keeps file menus from looking weird
-        self.root.grid_rowconfigure(1, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
-        self.root.grid_columnconfigure(2, weight=1)
 
-        # initialize some member vars, mostly to None unless it is reasonable to give it a value now
+        # members related to the background thread and operator instance
+        self.long_thread = None
+        self.background_operator = None
+
+        # widgets that we might want to access later
         self.run_button = None
         self.stop_button = None
-        self.long_thread = None
         self.label_string = StringVar()
-        self.background_operator = None
         self.progress = None
-        self.idf_test_cases = None
         self.log_message_listbox = None
+        self.results_tree = None
+
+        # some data holders
+        self.idf_test_cases = list()
+        self.tree_folders = {}
 
         # initialize the GUI
         self.init_window()
@@ -103,9 +75,8 @@ class MyApp(Frame):
         self.stop_button.pack(side=TOP, anchor=CENTER)
         quit_button.pack(side=TOP, anchor=CENTER)
 
-        # now let's set up a tableview with checkboxes for selecting IDFs to run
+        # now let's set up a list of checkboxes for selecting IDFs to run
         pane_idfs = ScrollableFrame(panes)
-        self.idf_test_cases = list()
         for i in range(50):
             self.idf_test_cases.append(
                 IDFTestCaseRowFrame(pane_idfs.scrollable_frame, f"File{i}", self.idf_selected_callback)
@@ -128,6 +99,20 @@ class MyApp(Frame):
         scrollbar.config(command=self.log_message_listbox.yview)
         results_notebook.add(frame_log_messages, text="Log Messages")
 
+        # set up a tree-view for the results
+        frame_results = Frame(results_notebook)
+        scrollbar = Scrollbar(frame_results)
+        self.results_tree = ttk.Treeview(frame_results, columns=("Base File", "Mod File", "Diff File"))
+        self.results_tree.heading("#0", text="Results", anchor=W)
+        self.results_tree.heading("Base File", text="Base", anchor=W)
+        self.results_tree.heading("Mod File", text="Mod", anchor=W)
+        self.results_tree.heading("Diff File", text="Diff", anchor=W)
+        self.rebuild_tree()
+        self.results_tree.pack(fill=BOTH, side=LEFT, expand=True)
+        scrollbar.pack(fill=Y, side=LEFT)
+        scrollbar.config(command=self.results_tree.yview)
+        results_notebook.add(frame_results, text="Results")
+
         panes.add(results_notebook)
 
         # status bar at the bottom
@@ -146,6 +131,22 @@ class MyApp(Frame):
 
     def run(self):
         self.root.mainloop()
+
+    def rebuild_tree(self, results=None):
+        for root in ResultsTreeRoots.get_all():
+            self.tree_folders[root] = self.results_tree.insert(
+                parent="", index='end', text=root, values=("", "", "")
+            )
+            if results:
+                self.results_tree.insert(
+                    parent=self.tree_folders[root], index="end", text="Pretend",
+                    values=("These", "Are", "Real")
+                )
+            else:
+                self.results_tree.insert(
+                    parent=self.tree_folders[root], index="end", text="Run test for results",
+                    values=("", "", "")
+                )
 
     def idf_selected_callback(self, test_case, checked):
         self.label_string.set(f"CHECKED: {test_case} ({checked.get()})")
