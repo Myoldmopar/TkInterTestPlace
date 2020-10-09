@@ -1,8 +1,8 @@
 from threading import Thread
 from tkinter import (
     Tk, ttk,  # Core pieces
-    Button, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
-    StringVar,  # Special Types
+    Button, Canvas, Checkbutton, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
+    BooleanVar, StringVar,  # Special Types
     messagebox,  # Dialog boxes
     E, W,  # Cardinal directions N, S,
     X, Y, BOTH,  # Orthogonal directions (for fill)
@@ -14,6 +14,30 @@ from pubsub import pub
 
 from my_app.structs import PubSubMessageTypes
 from my_app.operator import BackgroundOperation
+
+
+class ScrollableFrame(ttk.Frame):
+
+    def __init__(self, container):
+        super().__init__(container)
+        canvas = Canvas(self)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = ttk.Frame(canvas)
+        self.scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+
+class IDFTestCaseRowFrame(ttk.Frame):
+
+    def __init__(self, container, idf_file_path_from_repo_root, cb):
+        super().__init__(container)
+        self.idf_path = idf_file_path_from_repo_root
+        self.checked = BooleanVar()
+        self.checkbox = Checkbutton(container, text=idf_file_path_from_repo_root, variable=self.checked, command=cb)
+        self.checkbox.pack(fill=X)
 
 
 class MyApp(Frame):
@@ -69,16 +93,22 @@ class MyApp(Frame):
         self.stop_button.pack(side=TOP, anchor=CENTER)
         quit_button.pack(side=TOP, anchor=CENTER)
 
+        # now let's set up a tableview with checkboxes for selecting IDFs to run
+        pane_idfs = ScrollableFrame(panes)
+        for i in range(50):
+            IDFTestCaseRowFrame(pane_idfs.scrollable_frame, f"File{i}", self.idf_selected_callback).pack()
+        panes.add(pane_idfs)
+
         # set up a scrolled listbox
         pane_tests = Frame(panes)
         scrollbar = Scrollbar(pane_tests)
-        panes.add(pane_tests)
         my_list = Listbox(pane_tests, yscrollcommand=scrollbar.set)
         for line in range(100):
             my_list.insert(END, "This is line number " + str(line))
         my_list.pack(fill=BOTH, side=LEFT, expand=True)
         scrollbar.pack(fill=Y, side=LEFT)
         scrollbar.config(command=my_list.yview)
+        panes.add(pane_tests)
 
         # status bar at the bottom
         frame_status = Frame(self.root)
@@ -96,6 +126,9 @@ class MyApp(Frame):
 
     def run(self):
         self.root.mainloop()
+
+    def idf_selected_callback(self, check):
+        self.label_string.set("CHECKED")
 
     def set_button_status_for_run(self, is_running: bool):
         if is_running:
