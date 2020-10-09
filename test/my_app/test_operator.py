@@ -7,5 +7,6 @@ class TestOperator(TestCase):
 
     def test_run(self):
         b = BackgroundOperation()
-        self.assertFalse(b.cancel_me)
+        b.get_ready_to_go()
+        self.assertFalse(b._cancel_me)
         b.run(1)

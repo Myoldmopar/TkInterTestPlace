@@ -39,6 +39,9 @@ class IDFTestCaseRowFrame(ttk.Frame):
         self.checkbox = Checkbutton(container, text=idf_file_path_from_repo_root, variable=self.checked, command=cb)
         self.checkbox.pack(fill=X)
 
+    def set_enabled_status(self, enabled: bool):
+        self.checkbox.configure(state='normal' if enabled else 'disable')
+
 
 class MyApp(Frame):
 
@@ -46,7 +49,7 @@ class MyApp(Frame):
         self.root = Tk()
         Frame.__init__(self, self.root)
 
-        self.root.geometry('600x500')
+        self.root.geometry('800x500')
         self.root.resizable(width=1, height=1)
         self.root.option_add('*tearOff', False)  # keeps file menus from looking weird
         self.root.grid_rowconfigure(1, weight=1)
@@ -61,6 +64,7 @@ class MyApp(Frame):
         self.label_string = StringVar()
         self.background_operator = None
         self.progress = None
+        self.idf_test_cases = None
 
         # initialize the GUI
         self.init_window()
@@ -95,8 +99,12 @@ class MyApp(Frame):
 
         # now let's set up a tableview with checkboxes for selecting IDFs to run
         pane_idfs = ScrollableFrame(panes)
+        self.idf_test_cases = list()
         for i in range(50):
-            IDFTestCaseRowFrame(pane_idfs.scrollable_frame, f"File{i}", self.idf_selected_callback).pack()
+            self.idf_test_cases.append(
+                IDFTestCaseRowFrame(pane_idfs.scrollable_frame, f"File{i}", self.idf_selected_callback)
+            )
+            self.idf_test_cases[-1].pack()
         panes.add(pane_idfs)
 
         # set up a scrolled listbox
@@ -130,26 +138,32 @@ class MyApp(Frame):
     def idf_selected_callback(self, check):
         self.label_string.set("CHECKED")
 
-    def set_button_status_for_run(self, is_running: bool):
+    def set_gui_status_for_run(self, is_running: bool):
         if is_running:
             self.run_button.configure(state='disabled')
             self.stop_button.configure(state='normal')
+            for idf in self.idf_test_cases:
+                idf.set_enabled_status(False)
         else:
             self.run_button.configure(state='normal')
             self.stop_button.configure(state='disabled')
+            for idf in self.idf_test_cases:
+                idf.set_enabled_status(True)
 
     def client_run(self):
         if self.long_thread:
             messagebox.showerror("Cannot run another thread, wait for the current to finish -- how'd you get here?!?")
             return
         self.background_operator = BackgroundOperation()
-        self.set_button_status_for_run(True)
-        self.long_thread = Thread(target=self.background_operator.run, args=(5,))
+        self.background_operator.get_ready_to_go()
+        self.set_gui_status_for_run(True)
+        number_of_iterations = 5
+        self.long_thread = Thread(target=self.background_operator.run, args=(number_of_iterations,))
         self.long_thread.start()
 
     def client_stop(self):
         self.label_string.set("Attempting to cancel...")
-        self.background_operator.cancel_me = True
+        self.background_operator.please_stop()
 
     def client_exit(self):
         if self.long_thread:
@@ -158,14 +172,15 @@ class MyApp(Frame):
         exit()
 
     def client_done(self):
-        self.set_button_status_for_run(False)
+        self.set_gui_status_for_run(False)
         self.long_thread = None
 
-    def status_callback(self, status):
+    def status_callback(self, status, percent_complete):
+        self.progress['value'] = percent_complete
         self.label_string.set(f"Hey, status update: {str(status)}")
 
     def finished_callback(self, results):
-        self.label_string.set(f"Hey, all done! Results: {str(results)}")
+        self.label_string.set(f"Hey, all done! Results: {results['result_string']}")
         self.client_done()
 
     def cancelled_callback(self):
