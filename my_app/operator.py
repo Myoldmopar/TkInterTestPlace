@@ -25,8 +25,7 @@ class BackgroundOperation:
                 return
 
             # run one single iteration
-            # check_call([command, '1'])
-            sleep(1)
+            sleep(1)  # check_call([command, '1'])
 
             # then broadcast the message to any listeners
             pub.sendMessage(
