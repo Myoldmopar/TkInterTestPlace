@@ -1,13 +1,12 @@
 from threading import Thread
 from tkinter import (
     Tk, ttk,  # Core pieces
-    Button, Frame, Label, Listbox, Menu, PanedWindow, Scrollbar,  # Widgets
+    Button, Frame, Label, Listbox, Menu, Scrollbar,  # Widgets
     StringVar,  # Special Types
     messagebox,  # Dialog boxes
     E, W,  # Cardinal directions N, S,
     X, Y, BOTH,  # Orthogonal directions (for fill)
     END, TOP, LEFT, CENTER,  # relative directions (RIGHT)
-    GROOVE,  # relief type (for panedwindow sash)
     filedialog,  # system dialogs
 )
 
