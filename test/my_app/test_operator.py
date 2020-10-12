@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from my_app.operator import BackgroundOperation
+from my_app.background_operation import BackgroundOperation
 
 
 class TestOperator(TestCase):
