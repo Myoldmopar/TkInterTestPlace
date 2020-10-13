@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['/Users/elee/eplus/projects/TkInterTestPlace'],
+             pathex=['/home/edwin/PycharmProjects/TkInter'],
              binaries=[],
              datas=[],
              hiddenimports=[],
