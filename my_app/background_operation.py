@@ -4,11 +4,12 @@ from typing import Callable, Dict, List, Union
 
 class BackgroundOperation:
 
-    def __init__(self, idfs_to_run: List[str]):
+    def __init__(self, num_threads: int, idfs_to_run: List[str]):
         self._cancel_me = True  # need to make sure to call 'get_ready_to_go' prior to running
         self.callback_iteration_complete: Union[None, Callable[[str, str, float], None]] = None
         self.callback_finished: Union[None, Callable[[Dict], None]] = None
         self.callback_cancelled: Union[None, Callable[[], None]] = None
+        self.num_threads = num_threads
         self.idfs_to_run = idfs_to_run
 
     def please_stop(self):

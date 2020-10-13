@@ -3,13 +3,13 @@ from pathlib import Path
 import random
 from threading import Thread
 from tkinter import (
-    Tk,  # Core pieces
+    Tk, ttk,  # Core pieces
     Button, Frame, Label, LabelFrame, Listbox, Menu, OptionMenu, Scrollbar, Spinbox,  # Widgets
     StringVar,  # Special Types
     messagebox,  # Dialog boxes
     E, W,  # Cardinal directions N, S,
     X, Y, BOTH,  # Orthogonal directions (for fill)
-    END, LEFT,  # relative directions (RIGHT, TOP)
+    END, LEFT, TOP,  # relative directions (RIGHT, TOP)
     filedialog, simpledialog,  # system dialogs
 )
 from typing import Set
@@ -17,59 +17,6 @@ from typing import Set
 from pubsub import pub
 
 from my_app.background_operation import BackgroundOperation
-
-
-from tkinter import (
-    BooleanVar,
-    Canvas,
-    Checkbutton,
-    ttk
-)
-
-
-class ScrollableFrame(ttk.Frame):
-
-    def __init__(self, container):
-        super().__init__(container)
-        canvas = Canvas(self)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas)
-        self.scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-    def destroy_all_widgets(self):
-        for widget in self.scrollable_frame.pack_slaves():
-            widget.destroy()
-
-
-class IDFTestCaseRowFrame(ttk.Frame):
-
-    def __init__(self, container, idf_file_path_from_repo_root, cb=None):
-        super().__init__(container)
-        self.idf_path = idf_file_path_from_repo_root
-        self.checked = BooleanVar()
-        if cb:
-            self.checkbox = Checkbutton(
-                container,
-                text=idf_file_path_from_repo_root,
-                anchor=W,
-                variable=self.checked,
-                command=lambda i=idf_file_path_from_repo_root, c=self.checked: cb(i, c)
-            )
-        else:
-            self.checkbox = Checkbutton(
-                container,
-                text=idf_file_path_from_repo_root,
-                anchor=W,
-                variable=self.checked
-            )
-        self.checkbox.pack(anchor=W)
-
-    def set_enabled_status(self, enabled: bool):
-        self.checkbox.configure(state='normal' if enabled else 'disable')
 
 
 class ResultsTreeRoots:
@@ -154,7 +101,7 @@ class MyApp(Frame):
         Frame.__init__(self, self.root)
 
         # high level GUI configuration
-        self.root.geometry('500x400')
+        self.root.geometry('800x600')
         self.root.resizable(width=1, height=1)
         self.root.option_add('*tearOff', False)  # keeps file menus from looking weird
 
@@ -184,7 +131,10 @@ class MyApp(Frame):
         self.log_message_listbox = None
         self.results_tree = None
         self.num_threads_spinner = None
-        self.idf_listing = None
+        self.full_idf_listbox = None
+        self.move_idf_to_active_button = None
+        self.active_idf_listbox = None
+        self.remove_idf_from_active_button = None
         self.idf_select_all_button = None
         self.idf_deselect_all_button = None
         self.idf_select_n_random_button = None
@@ -192,8 +142,7 @@ class MyApp(Frame):
         self.reporting_frequency_option_menu = None
 
         # some data holders
-        self.idf_test_cases = list()
-        self.tree_folders = {}
+        self.tree_folders = dict()
         self.valid_idfs_in_listing = False
         self.run_button_color = '#008000'
 
@@ -222,21 +171,18 @@ class MyApp(Frame):
 
         # run configuration
         pane_run = Frame(main_notebook)
-
         group_build_dir_1 = LabelFrame(pane_run, text="Build Directory 1")
         group_build_dir_1.pack(fill=X, padx=5)
         self.build_dir_1_button = Button(group_build_dir_1, text="Change...", command=self.client_build_dir_1)
         self.build_dir_1_button.grid(row=1, column=1, sticky=W)
         self.build_dir_1_label = Label(group_build_dir_1, textvariable=self.build_dir_1_var)
         self.build_dir_1_label.grid(row=1, column=2, sticky=E)
-
         group_build_dir_2 = LabelFrame(pane_run, text="Build Directory 2")
         group_build_dir_2.pack(fill=X, padx=5)
         self.build_dir_2_button = Button(group_build_dir_2, text="Change...", command=self.client_build_dir_2)
         self.build_dir_2_button.grid(row=1, column=1, sticky=W)
         self.build_dir_2_label = Label(group_build_dir_2, textvariable=self.build_dir_2_var)
         self.build_dir_2_label.grid(row=1, column=2, sticky=E)
-
         group_run_options = LabelFrame(pane_run, text="Run Options")
         group_run_options.pack(fill=X, padx=5)
         Label(group_run_options, text="Number of threads for suite: ").grid(row=1, column=1, sticky=E)
@@ -250,7 +196,6 @@ class MyApp(Frame):
             group_run_options, self.reporting_frequency, *ReportingFrequency.get_all()
         )
         self.reporting_frequency_option_menu.grid(row=3, column=2, sticky=W)
-
         main_notebook.add(pane_run, text='Configuration')
 
         # now let's set up a list of checkboxes for selecting IDFs to run
@@ -262,20 +207,48 @@ class MyApp(Frame):
         )
         self.idf_select_all_button.pack(side=LEFT, expand=1)
         self.idf_select_all_button = Button(
-            group_idf_tools, text="Select All", command=self.client_idf_select_all
+            group_idf_tools, text="Select All", command=self.idf_select_all
         )
         self.idf_select_all_button.pack(side=LEFT, expand=1)
         self.idf_deselect_all_button = Button(
-            group_idf_tools, text="Deselect All", command=self.client_idf_deselect_all
+            group_idf_tools, text="Deselect All", command=self.idf_deselect_all
         )
         self.idf_deselect_all_button.pack(side=LEFT, expand=1)
         self.idf_select_n_random_button = Button(
-            group_idf_tools, text="Select N Random", command=self.client_idf_select_random
+            group_idf_tools, text="Select N Random", command=self.idf_select_random
         )
         self.idf_select_n_random_button.pack(side=LEFT, expand=1)
-        self.idf_listing = ScrollableFrame(pane_idfs)
+
+        group_full_idf_list = LabelFrame(pane_idfs, text="Full IDF List")
+        group_full_idf_list.pack(fill=X, padx=5)
+        scrollbar = Scrollbar(group_full_idf_list)
+        self.full_idf_listbox = Listbox(group_full_idf_list, yscrollcommand=scrollbar.set)
+        self.full_idf_listbox.bind('<Double-1>', self.idf_move_to_active)
+        self.full_idf_listbox.pack(fill=BOTH, side=LEFT, expand=True)
+        scrollbar.pack(fill=Y, side=LEFT)
+        scrollbar.config(command=self.full_idf_listbox.yview)
+
+        self.move_idf_to_active_button = Button(
+            pane_idfs, text="↓ Add to Active List ↓", command=self.idf_move_to_active
+        )
+        self.move_idf_to_active_button.pack(side=TOP, fill=X, expand=True)
+
+        self.remove_idf_from_active_button = Button(
+            pane_idfs, text="↑ Remove from Active List ↑", command=self.idf_remove_from_active
+        )
+        self.remove_idf_from_active_button.pack(side=TOP, fill=X, expand=True)
+
+        group_active_idf_list = LabelFrame(pane_idfs, text="Active IDF List")
+        group_active_idf_list.pack(fill=X, padx=5)
+        scrollbar = Scrollbar(group_active_idf_list)
+        self.active_idf_listbox = Listbox(group_active_idf_list, yscrollcommand=scrollbar.set)
+        self.active_idf_listbox.bind('<Double-1>', self.idf_remove_from_active)
+        self.active_idf_listbox.pack(fill=BOTH, side=LEFT, expand=True)
+        scrollbar.pack(fill=Y, side=LEFT)
+        scrollbar.config(command=self.active_idf_listbox.yview)
+
         self.build_idf_listing(initialize=True)
-        self.idf_listing.pack(fill=BOTH, expand=1)
+
         main_notebook.add(pane_idfs, text="IDF Selection")
 
         # set up a scrolled listbox for the log messages
@@ -294,7 +267,6 @@ class MyApp(Frame):
 
         # set up a tree-view for the results
         frame_results = Frame(main_notebook)
-
         scrollbar = Scrollbar(frame_results)
         self.results_tree = ttk.Treeview(frame_results, columns=("Base File", "Mod File", "Diff File"))
         self.results_tree.heading("#0", text="Results")
@@ -332,57 +304,41 @@ class MyApp(Frame):
 
     def build_idf_listing(self, initialize=False, desired_selected_idfs=None):
         # clear any existing ones
-        self.idf_test_cases.clear()
-        self.idf_listing.destroy_all_widgets()
+        self.active_idf_listbox.delete(0, END)
+        self.full_idf_listbox.delete(0, END)
 
         # now rebuild them
         self.valid_idfs_in_listing = False
-        if initialize:
-            self.idf_test_cases.append(
-                IDFTestCaseRowFrame(self.idf_listing.scrollable_frame, "***Select build folders to fill listing***")
-            )
+        path_1 = Path(self.build_dir_1_var.get())
+        path_2 = Path(self.build_dir_2_var.get())
+        if path_1.exists() and path_2.exists():
+            idf_dir_1 = dummy_get_idf_dir(path_1)
+            idfs_dir_1 = dummy_get_idfs_in_dir(idf_dir_1)
+            idf_dir_2 = dummy_get_idf_dir(path_2)
+            idfs_dir_2 = dummy_get_idfs_in_dir(idf_dir_2)
+            common_idfs = idfs_dir_1.intersection(idfs_dir_2)
+            for idf in sorted(common_idfs):
+                self.full_idf_listbox.insert(END, str(idf))
+            self.valid_idfs_in_listing = True
+        elif initialize:
+            self.full_idf_listbox.insert(END, "This will be the master list")
+            self.full_idf_listbox.insert(END, "Select build folders to fill listing")
+        elif path_1.exists():
+            self.full_idf_listbox.insert(END, "Cannot update master list master list")
+            self.full_idf_listbox.insert(END, "Build folder path #2 is invalid")
+            self.full_idf_listbox.insert(END, "Select build folders to fill listing")
+        elif path_2.exists():
+            self.full_idf_listbox.insert(END, "Cannot update master list master list")
+            self.full_idf_listbox.insert(END, "Build folder path #1 is invalid")
+            self.full_idf_listbox.insert(END, "Select build folders to fill listing")
         else:
-            path_1 = Path(self.build_dir_1_var.get())
-            path_2 = Path(self.build_dir_2_var.get())
-            if path_1.exists() and path_2.exists():
-                idf_dir_1 = dummy_get_idf_dir(path_1)
-                idfs_dir_1 = dummy_get_idfs_in_dir(idf_dir_1)
-                idf_dir_2 = dummy_get_idf_dir(path_2)
-                idfs_dir_2 = dummy_get_idfs_in_dir(idf_dir_2)
-                common_idfs = idfs_dir_1.intersection(idfs_dir_2)
-                for idf in sorted(common_idfs):
-                    self.idf_test_cases.append(
-                        IDFTestCaseRowFrame(self.idf_listing.scrollable_frame, str(idf),
-                                            cb=self.refresh_idf_count_status)
-                    )
-                self.valid_idfs_in_listing = True
-            elif path_1.exists():
-                self.idf_test_cases.append(
-                    IDFTestCaseRowFrame(
-                        self.idf_listing.scrollable_frame,
-                        "***Cannot update; path 2 does not exist, update build folders***"
-                    )
-                )
-            elif path_2.exists():
-                self.idf_test_cases.append(
-                    IDFTestCaseRowFrame(
-                        self.idf_listing.scrollable_frame,
-                        "***Cannot update; path 1 does not exist, update build folders***"
-                    )
-                )
-            else:
-                self.idf_test_cases.append(
-                    IDFTestCaseRowFrame(
-                        self.idf_listing.scrollable_frame,
-                        "***Cannot update; neither build folder exists, update build folders***"
-                    )
-                )
-
-        for i in self.idf_test_cases:
-            i.pack()
+            self.full_idf_listbox.insert(END, "Cannot update master list master list")
+            self.full_idf_listbox.insert(END, "Both build folders are invalid")
+            self.full_idf_listbox.insert(END, "Select build folders to fill listing")
 
         if desired_selected_idfs is None:
             ...
+            # add things to the listbox
 
     def build_results_tree(self, results=None):
         self.results_tree.delete(*self.results_tree.get_children())
@@ -415,68 +371,107 @@ class MyApp(Frame):
     def client_idf_refresh(self):
         self.build_idf_listing()
 
-    def client_idf_select_all(self):
-        for i in self.idf_test_cases:
-            i.checked.set(True)
-        self.refresh_idf_count_status()
+    def idf_move_to_active(self, _):
+        if not self.valid_idfs_in_listing:
+            simpledialog.messagebox.showerror("IDF Selection Error", "Invalid build folders or IDF list")
+            return
+        current_selection = self.full_idf_listbox.curselection()
+        if not current_selection:
+            simpledialog.messagebox.showerror("IDF Selection Error", "No IDF Selected")
+            return
+        currently_selected_idf = self.full_idf_listbox.get(current_selection)
+        try:
+            self.active_idf_listbox.get(0, "end").index(currently_selected_idf)
+            simpledialog.messagebox.showwarning("IDF Selection Warning", "IDF already exists in active list")
+            return
+        except ValueError:
+            pass  # the value error indicates it was _not_ found, so this is success
+        self.active_idf_listbox.insert(END, currently_selected_idf)
+        self.idf_refresh_count_status(currently_selected_idf, True)
 
-    def client_idf_deselect_all(self):
-        for i in self.idf_test_cases:
-            i.checked.set(False)
-        self.refresh_idf_count_status()
+    def idf_remove_from_active(self, event=None):
+        if not self.valid_idfs_in_listing:
+            simpledialog.messagebox.showerror("IDF Selection Error", "Invalid build folders or IDF list")
+            return
+        current_selection = self.active_idf_listbox.curselection()
+        if not current_selection:
+            if event:
+                return
+            simpledialog.messagebox.showerror("IDF Selection Error", "No IDF Selected")
+            return
+        self.active_idf_listbox.delete(current_selection)
+        self.idf_refresh_count_status(current_selection, False)
 
-    def client_idf_select_random(self):
+    def idf_select_all(self):
+        self.idf_deselect_all()
+        if not self.valid_idfs_in_listing:
+            simpledialog.messagebox.showerror("IDF Selection Error", "Invalid build folders or IDF list")
+            return
+        all_idfs = self.full_idf_listbox.get(0, END)
+        for idf in all_idfs:
+            self.active_idf_listbox.insert(END, idf)
+        self.idf_refresh_count_status()
+
+    def idf_deselect_all(self):
+        if not self.valid_idfs_in_listing:
+            simpledialog.messagebox.showerror("IDF Selection Error", "Invalid build folders or IDF list")
+            return
+        self.active_idf_listbox.delete(0, END)
+        self.idf_refresh_count_status()
+
+    def idf_select_random(self):
+        if not self.valid_idfs_in_listing:
+            simpledialog.messagebox.showerror("IDF Selection Error", "Invalid build folders or IDF list")
+            return
         potential_number_to_select = simpledialog.askinteger("Input Amount", "How many would you like to select?")
         if not potential_number_to_select:
             return
-        self.client_idf_deselect_all()
+        self.idf_deselect_all()
         number_to_select = int(potential_number_to_select)
-        number_of_idf_files = len(self.idf_test_cases)
+        number_of_idf_files = self.full_idf_listbox.size()
         if number_of_idf_files <= number_to_select:  # just take all of them
-            self.client_idf_select_all()
+            self.idf_select_all()
         else:  # down select randomly
             indices_to_take = random.sample(range(number_of_idf_files), number_to_select)
+            idfs_to_take = list()
             for i in indices_to_take:
-                self.idf_test_cases[i].checked.set(True)
-        self.refresh_idf_count_status()
+                idf_to_get = self.full_idf_listbox.get(i)
+                idfs_to_take.append(idf_to_get)
+            for idf_to_get in sorted(idfs_to_take):
+                self.active_idf_listbox.insert(END, idf_to_get)
+        self.idf_refresh_count_status()
 
-    def refresh_idf_count_status(self, test_case=None, checked=False):
-        total = 0
-        total_checked = 0
-        for i in self.idf_test_cases:
-            total += 1
-            if i.checked.get():
-                total_checked += 1
+    def idf_refresh_count_status(self, test_case=None, checked=False):
+        if not self.valid_idfs_in_listing:
+            return
+        num_total = self.full_idf_listbox.size()
+        num_active = self.active_idf_listbox.size()
         if test_case:
             chk_string = "Checked" if checked else "Unchecked"
             if checked:
-                self.label_string.set(f"{chk_string} {test_case} ({total_checked}/{total} selected)")
+                self.label_string.set(f"{chk_string} {test_case} ({num_active}/{num_total} selected)")
         else:
-            self.label_string.set(f"{total_checked}/{total} selected")
+            self.label_string.set(f"{num_active}/{num_total} selected")
 
     def set_gui_status_for_run(self, is_running: bool):
         if is_running:
             run_button_state = 'disabled'
             stop_button_state = 'normal'
-            idf_selection_state = False
         else:
             run_button_state = 'normal'
             stop_button_state = 'disabled'
-            idf_selection_state = True
         self.build_dir_1_button.configure(state=run_button_state)
         self.build_dir_2_button.configure(state=run_button_state)
         self.run_button.configure(state=run_button_state)
         self.idf_select_all_button.configure(state=run_button_state)
         self.idf_deselect_all_button.configure(state=run_button_state)
         self.idf_select_n_random_button.configure(state=run_button_state)
+        self.move_idf_to_active_button.configure(state=run_button_state)
+        self.remove_idf_from_active_button.configure(state=run_button_state)
         self.run_period_option_menu.configure(state=run_button_state)
         self.reporting_frequency_option_menu.configure(state=run_button_state)
         self.num_threads_spinner.configure(state=run_button_state)
         self.stop_button.configure(state=stop_button_state)
-        for idf in self.idf_test_cases:
-            idf.set_enabled_status(idf_selection_state)
-
-    # -- Handling UI actions like button presses
 
     def client_build_dir_1(self):
         selected_dir = filedialog.askdirectory()
@@ -494,16 +489,22 @@ class MyApp(Frame):
         if self.long_thread:
             messagebox.showerror("Cannot run another thread, wait for the current to finish -- how'd you get here?!?")
             return
+        potential_num_threads = self.num_threads_spinner.get()
+        try:
+            num_threads = int(potential_num_threads)
+        except ValueError:
+            messagebox.showerror("Invalid Configuration", "Number of threads must be an integer")
+            return
         idfs_to_run = list()
-        for i in self.idf_test_cases:
-            if i.checked.get():
-                idfs_to_run.append(i.idf_path)
-        self.background_operator = BackgroundOperation(idfs_to_run)
+        for i in self.active_idf_listbox.get(0, END):
+            idfs_to_run.append(i)
+        self.background_operator = BackgroundOperation(num_threads, idfs_to_run)
         self.background_operator.get_ready_to_go(
             MyApp.status_listener, MyApp.finished_listener, MyApp.cancelled_listener
         )
         self.set_gui_status_for_run(True)
         self.long_thread = Thread(target=self.background_operator.run)
+        self.add_to_log("Starting a new set of tests")
         self.long_thread.start()
 
     def client_stop(self):
